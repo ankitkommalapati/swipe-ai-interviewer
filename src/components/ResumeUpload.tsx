@@ -24,13 +24,34 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onCandidateCreated }) => {
       setUploadedFile(file);
       
       // Pre-fill form with extracted data
-      form.setFieldsValue({
-        name: parsedData.name || '',
-        email: parsedData.email || '',
-        phone: parsedData.phone || '',
-      });
+      const formData: any = {};
+      
+      if (parsedData.name && parsedData.name.trim()) {
+        formData.name = parsedData.name.trim();
+      }
+      
+      if (parsedData.email && parsedData.email.trim()) {
+        formData.email = parsedData.email.trim();
+      }
+      
+      if (parsedData.phone && parsedData.phone.trim()) {
+        formData.phone = parsedData.phone.trim();
+      }
+      
+      // Set form values
+      form.setFieldsValue(formData);
 
-      message.success('Resume parsed successfully!');
+      // Debug: Log extracted data
+      console.log('Extracted resume data:', parsedData);
+      console.log('Form data being set:', formData);
+
+      // Show success message with details
+      const extractedCount = Object.keys(formData).length;
+      if (extractedCount > 0) {
+        message.success(`Resume parsed! Extracted ${extractedCount} field(s). Please review and complete any missing information.`);
+      } else {
+        message.success('Resume uploaded successfully! Please fill in your information below.');
+      }
     } catch (error) {
       message.error('Failed to parse resume. Please try again.');
       console.error(error);
@@ -97,17 +118,12 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onCandidateCreated }) => {
           </p>
         </Dragger>
 
-        {resumeData && (
-          <div style={{ marginBottom: 24, padding: 16, background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6 }}>
-            <h4 style={{ color: '#52c41a', marginBottom: 8 }}>
-              <FileTextOutlined /> Extracted Information
+        {uploadedFile?.type === 'application/pdf' && (
+          <div style={{ marginBottom: 24, padding: 16, background: '#fff7e6', border: '1px solid #ffd591', borderRadius: 6 }}>
+            <h4 style={{ color: '#fa8c16', marginBottom: 8 }}>
+              <FileTextOutlined /> File Uploaded
             </h4>
-            {resumeData.name && <p><strong>Name:</strong> {resumeData.name}</p>}
-            {resumeData.email && <p><strong>Email:</strong> {resumeData.email}</p>}
-            {resumeData.phone && <p><strong>Phone:</strong> {resumeData.phone}</p>}
-            {!resumeData.name && !resumeData.email && !resumeData.phone && (
-              <p style={{ color: '#faad14' }}>No information could be extracted. Please fill in manually.</p>
-            )}
+            <p style={{ color: '#fa8c16' }}>PDF file uploaded successfully. Please fill in your information below.</p>
           </div>
         )}
 
