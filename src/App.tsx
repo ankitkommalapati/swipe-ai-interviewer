@@ -1,26 +1,36 @@
 import React from 'react';
-import logo from './logo.svg';
+import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ConfigProvider } from 'antd';
+import { store, persistor } from './store';
+import MainLayout from './components/MainLayout';
+import IntervieweeTab from './components/IntervieweeTab';
+import InterviewerTab from './components/InterviewerTab';
+import WelcomeBackModal from './components/WelcomeBackModal';
 import './App.css';
 
-function App() {
+const App: React.FC = () => {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Provider store={store}>
+      <PersistGate loading={<div>Loading...</div>} persistor={persistor}>
+        <ConfigProvider>
+          <Router>
+            <div className="App">
+              <MainLayout>
+                <Routes>
+                  <Route path="/" element={<IntervieweeTab />} />
+                  <Route path="/interviewee" element={<IntervieweeTab />} />
+                  <Route path="/interviewer" element={<InterviewerTab />} />
+                </Routes>
+              </MainLayout>
+              <WelcomeBackModal />
+            </div>
+          </Router>
+        </ConfigProvider>
+      </PersistGate>
+    </Provider>
   );
-}
+};
 
 export default App;
