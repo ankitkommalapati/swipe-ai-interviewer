@@ -103,10 +103,10 @@ const ChatInterface: React.FC = () => {
         // Move to next question
         setTimeout(() => {
           dispatch(nextQuestion());
-          const nextQuestion = questions[currentQuestionIndex + 1];
+          const nextQ = questions[currentQuestionIndex + 1];
           dispatch(addInterviewMessage({
             type: 'assistant',
-            content: `Next question (${nextQuestion.difficulty}): ${nextQuestion.text}`,
+            content: `Next question (${nextQ.difficulty}): ${nextQ.text}`,
             isSystemMessage: true
           }));
         }, 2000);

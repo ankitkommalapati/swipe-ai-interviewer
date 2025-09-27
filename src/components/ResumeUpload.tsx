@@ -5,7 +5,6 @@ import { ResumeParser, ResumeData } from '../services/resumeParser';
 import { Candidate } from '../types';
 
 const { Dragger } = Upload;
-const { TextArea } = Input;
 
 interface ResumeUploadProps {
   onCandidateCreated: (candidate: Candidate) => void;

@@ -14,7 +14,7 @@ const { Step } = Steps;
 const IntervieweeTab: React.FC = () => {
   const dispatch = useDispatch();
   const { candidates } = useSelector((state: RootState) => state.candidates);
-  const { isInterviewActive, currentSession } = useSelector((state: RootState) => state.interview);
+  const { currentSession } = useSelector((state: RootState) => state.interview);
   const [currentStep, setCurrentStep] = useState(0);
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
 
