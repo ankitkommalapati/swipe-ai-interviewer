@@ -37,7 +37,7 @@ const candidatesSlice = createSlice({
         candidate.interviewStatus = 'completed';
         candidate.finalScore = action.payload.score;
         candidate.finalSummary = action.payload.summary;
-        candidate.endTime = new Date();
+        candidate.endTime = new Date().toISOString();
       }
     },
     selectCandidate: (state, action: PayloadAction<string>) => {

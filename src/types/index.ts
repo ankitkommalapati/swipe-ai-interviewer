@@ -1,16 +1,23 @@
+export interface ResumeInfo {
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  uploadDate: string; // Changed from Date to string for serialization
+}
+
 export interface Candidate {
   id: string;
   name: string;
   email: string;
   phone: string;
-  resume?: File;
+  resume?: ResumeInfo;
   interviewStatus: 'not_started' | 'in_progress' | 'completed';
   currentQuestionIndex: number;
   answers: Answer[];
   finalScore?: number;
   finalSummary?: string;
-  startTime?: Date;
-  endTime?: Date;
+  startTime?: string; // Changed from Date to string for serialization
+  endTime?: string; // Changed from Date to string for serialization
 }
 
 export interface Answer {
@@ -20,7 +27,7 @@ export interface Answer {
   answer: string;
   score: number;
   timeSpent: number; // in seconds
-  timestamp: Date;
+  timestamp: string; // Changed from Date to string for serialization
 }
 
 export interface Question {
@@ -35,7 +42,7 @@ export interface ChatMessage {
   id: string;
   type: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
+  timestamp: string; // Changed from Date to string for serialization
   isSystemMessage?: boolean;
 }
 
@@ -44,6 +51,6 @@ export interface InterviewSession {
   isActive: boolean;
   currentQuestion?: Question;
   messages: ChatMessage[];
-  startTime?: Date;
-  pausedTime?: Date;
+  startTime?: string; // Changed from Date to string for serialization
+  pausedTime?: string; // Changed from Date to string for serialization
 }

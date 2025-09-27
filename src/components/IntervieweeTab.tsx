@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Card, Steps, Button, message } from 'antd';
 import { RootState } from '../store';
-import { addCandidate } from '../store/slices/candidatesSlice';
+import { addCandidate, updateCandidate } from '../store/slices/candidatesSlice';
 import { startInterview, setQuestions } from '../store/slices/interviewSlice';
 import { Candidate } from '../types';
 import ResumeUpload from './ResumeUpload';
@@ -18,7 +18,7 @@ const IntervieweeTab: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
 
-  const currentCandidate = candidates.find(c => c.id === currentSession?.candidateId);
+  const currentCandidate = candidates.find((c: Candidate) => c.id === currentSession?.candidateId);
 
   useEffect(() => {
     if (currentCandidate) {
@@ -39,21 +39,31 @@ const IntervieweeTab: React.FC = () => {
     setGeneratingQuestions(true);
     try {
       const questions = await AIService.generateQuestions();
+      
+      if (!questions || questions.length === 0) {
+        throw new Error('No questions generated');
+      }
+      
       dispatch(setQuestions(questions));
       dispatch(startInterview(candidate.id));
       
       // Update candidate status
-      dispatch(addCandidate({
-        ...candidate,
-        interviewStatus: 'in_progress',
-        startTime: new Date(),
+      dispatch(updateCandidate({
+        id: candidate.id,
+        updates: {
+          interviewStatus: 'in_progress',
+          startTime: new Date().toISOString(),
+        }
       }));
       
-      setCurrentStep(1);
       message.success('Interview started! Good luck!');
     } catch (error) {
-      message.error('Failed to start interview. Please try again.');
-      console.error(error);
+      console.error('Error starting interview:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Please check your OpenAI API key and try again.';
+      message.error(`Failed to start interview: ${errorMessage}`);
+      
+      // Reset to step 0 if interview fails to start
+      setCurrentStep(0);
     } finally {
       setGeneratingQuestions(false);
     }

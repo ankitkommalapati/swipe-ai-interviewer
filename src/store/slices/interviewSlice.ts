@@ -28,16 +28,22 @@ const interviewSlice = createSlice({
         candidateId: action.payload,
         isActive: true,
         messages: [],
-        startTime: new Date(),
+        startTime: new Date().toISOString(),
       };
       state.isInterviewActive = true;
       state.currentQuestionIndex = 0;
       state.isPaused = false;
+      
+      // Set the first question if available
+      if (state.questions.length > 0 && state.currentSession) {
+        state.currentSession.currentQuestion = state.questions[0];
+        state.timeRemaining = state.questions[0].timeLimit;
+      }
     },
     pauseInterview: (state) => {
       state.isPaused = true;
       if (state.currentSession) {
-        state.currentSession.pausedTime = new Date();
+        state.currentSession.pausedTime = new Date().toISOString();
       }
     },
     resumeInterview: (state) => {
@@ -79,7 +85,7 @@ const interviewSlice = createSlice({
           id: Date.now().toString(),
           type: action.payload.type,
           content: action.payload.content,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           isSystemMessage: action.payload.isSystemMessage,
         };
         state.currentSession.messages.push(message);

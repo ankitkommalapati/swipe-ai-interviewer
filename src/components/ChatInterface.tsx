@@ -1,94 +1,74 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Card, Input, Button, List, Typography, Progress, message, Spin } from 'antd';
-import { SendOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Input, Button, Typography, message } from 'antd';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { addInterviewMessage, updateTimeRemaining, nextQuestion } from '../store/slices/interviewSlice';
 import { addAnswer, completeInterview } from '../store/slices/candidatesSlice';
 import { AIService } from '../services/aiService';
-import { ChatMessage } from '../types';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
 
 const ChatInterface: React.FC = () => {
   const dispatch = useDispatch();
-  const { currentSession, questions, currentQuestionIndex, timeRemaining, isInterviewActive } = useSelector((state: RootState) => state.interview);
-  const { candidates } = useSelector((state: RootState) => state.candidates);
-  
   const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const currentCandidate = candidates.find(c => c.id === currentSession?.candidateId);
+  const { questions, currentQuestionIndex, timeRemaining, isInterviewActive, currentSession } = useSelector((state: RootState) => state.interview);
+  const { candidates } = useSelector((state: RootState) => state.candidates);
+  const currentCandidate = candidates.find((c: any) => c.id === currentSession?.candidateId);
+
+
+  const startTimer = useCallback(() => {
+    if (timeRemaining > 0 && isInterviewActive && !isGenerating) {
+      const timer = setTimeout(() => {
+        dispatch(updateTimeRemaining(timeRemaining - 1));
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [timeRemaining, isInterviewActive, isGenerating, dispatch]);
 
   useEffect(() => {
-    if (isInterviewActive && timeRemaining > 0 && !timerRef.current) {
-      startTimer();
-    }
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [isInterviewActive, timeRemaining]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [currentSession?.messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const startTimer = () => {
-    timerRef.current = setInterval(() => {
-      dispatch(updateTimeRemaining(timeRemaining - 1));
-    }, 1000);
-  };
-
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
+    const cleanup = startTimer();
+    return cleanup;
+  }, [startTimer]);
 
   const handleSubmit = async () => {
     if (!inputValue.trim() || isSubmitting) return;
 
-    const userMessage = {
-      id: Date.now().toString(),
-      type: 'user' as const,
-      content: inputValue,
-      timestamp: new Date(),
-    };
-
-    dispatch(addInterviewMessage({ type: 'user', content: inputValue }));
-    setInputValue('');
     setIsSubmitting(true);
+    const answerText = inputValue.trim();
+    setInputValue('');
 
     try {
+      // Add user message
+      dispatch(addInterviewMessage({ type: 'user', content: answerText }));
+
+      // Get current question for evaluation
       const currentQuestion = questions[currentQuestionIndex];
+      if (!currentQuestion) {
+        throw new Error('No current question found');
+      }
+
+      // Calculate time spent
       const timeSpent = currentQuestion.timeLimit - timeRemaining;
-      
-      // Evaluate answer
+
+      // Evaluate answer with AI
       setIsGenerating(true);
-      const score = await AIService.evaluateAnswer(currentQuestion, inputValue);
-      
-      // Add answer to candidate
+      const score = await AIService.evaluateAnswer(currentQuestion, answerText);
+
+      // Store answer
       dispatch(addAnswer({
         candidateId: currentSession!.candidateId,
         answer: {
           questionId: currentQuestion.id,
           question: currentQuestion.text,
           difficulty: currentQuestion.difficulty,
-          answer: inputValue,
+          answer: answerText,
           score,
           timeSpent,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
         }
       }));
 
@@ -96,24 +76,16 @@ const ChatInterface: React.FC = () => {
       const feedbackMessage = `Your answer scored ${score}/10. ${getScoreFeedback(score)}`;
       dispatch(addInterviewMessage({ type: 'assistant', content: feedbackMessage }));
 
-      // Check if interview is complete
-      if (currentQuestionIndex >= questions.length - 1) {
-        await completeInterviewSession();
+      // Move to next question or complete interview
+      if (currentQuestionIndex < questions.length - 1) {
+        dispatch(nextQuestion());
+        message.success('Answer submitted! Moving to next question.');
       } else {
-        // Move to next question
-        setTimeout(() => {
-          dispatch(nextQuestion());
-          const nextQ = questions[currentQuestionIndex + 1];
-          dispatch(addInterviewMessage({
-            type: 'assistant',
-            content: `Next question (${nextQ.difficulty}): ${nextQ.text}`,
-            isSystemMessage: true
-          }));
-        }, 2000);
+        await completeInterviewSession();
       }
     } catch (error) {
-      message.error('Error processing answer. Please try again.');
-      console.error(error);
+      console.error('Error submitting answer:', error);
+      message.error('Failed to submit answer. Please try again.');
     } finally {
       setIsSubmitting(false);
       setIsGenerating(false);
@@ -125,14 +97,14 @@ const ChatInterface: React.FC = () => {
       setIsGenerating(true);
       
       // Generate final summary
-      const answers = currentCandidate?.answers.map(a => ({
+      const answers = currentCandidate?.answers.map((a: any) => ({
         question: a.question,
         answer: a.answer,
         score: a.score
       })) || [];
 
       const summary = await AIService.generateFinalSummary(answers);
-      const finalScore = Math.round(answers.reduce((sum, a) => sum + a.score, 0) / answers.length);
+      const finalScore = Math.round(answers.reduce((sum: any, a: any) => sum + a.score, 0) / answers.length);
 
       dispatch(completeInterview({
         candidateId: currentSession!.candidateId,
@@ -140,24 +112,20 @@ const ChatInterface: React.FC = () => {
         summary
       }));
 
-      dispatch(addInterviewMessage({
-        type: 'assistant',
-        content: `Interview completed! Your final score is ${finalScore}/10. ${summary}`,
-        isSystemMessage: true
-      }));
-
+      message.success('Interview completed! Great job!');
     } catch (error) {
       console.error('Error completing interview:', error);
+      message.error('Failed to complete interview. Please try again.');
     } finally {
       setIsGenerating(false);
     }
   };
 
   const getScoreFeedback = (score: number): string => {
-    if (score >= 8) return "Excellent answer!";
-    if (score >= 6) return "Good answer with room for improvement.";
-    if (score >= 4) return "Fair answer. Consider providing more detail.";
-    return "Answer needs significant improvement.";
+    if (score >= 8) return 'Excellent answer!';
+    if (score >= 6) return 'Good answer with room for improvement.';
+    if (score >= 4) return 'Fair answer, consider providing more detail.';
+    return 'Try to be more specific and detailed in your response.';
   };
 
   const formatTime = (seconds: number): string => {
@@ -166,101 +134,118 @@ const ChatInterface: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const currentQuestion = questions[currentQuestionIndex];
-  const progress = currentQuestionIndex / questions.length * 100;
-
   if (!isInterviewActive || !currentSession) {
     return (
       <Card>
-        <Text>No active interview session. Please start an interview first.</Text>
+        <div style={{ textAlign: 'center', padding: 40 }}>
+          <Title level={3} style={{ color: '#666' }}>
+            No active interview session
+          </Title>
+          <Text style={{ fontSize: 16, color: '#999' }}>
+            Please start an interview first.
+          </Text>
+        </div>
       </Card>
     );
   }
 
-  return (
-    <Card>
-      <div style={{ marginBottom: 16 }}>
-        <Title level={4}>Interview Progress</Title>
-        <Progress percent={progress} />
-        <Text style={{ fontSize: 12, color: '#666' }}>
-          Question {currentQuestionIndex + 1} of {questions.length}
-        </Text>
-        
-        {currentQuestion && (
-          <div style={{ marginTop: 16, padding: 16, background: '#f5f5f5', borderRadius: 6 }}>
-            <Title level={5}>
-              {currentQuestion.difficulty.toUpperCase()} Question
-              <ClockCircleOutlined style={{ marginLeft: 8 }} />
-              {formatTime(timeRemaining)}
-            </Title>
-            <Text>{currentQuestion.text}</Text>
-          </div>
-        )}
-      </div>
-
-      <div style={{ height: 400, overflowY: 'auto', border: '1px solid #d9d9d9', borderRadius: 6, padding: 16, marginBottom: 16 }}>
-        <List
-          dataSource={currentSession.messages}
-          renderItem={(message: ChatMessage) => (
-            <List.Item style={{ border: 'none', padding: '8px 0' }}>
-              <div style={{
-                width: '100%',
-                textAlign: message.type === 'user' ? 'right' : 'left',
-                padding: message.type === 'user' ? '8px 16px 8px 40px' : '8px 40px 8px 16px',
-                background: message.type === 'user' ? '#1890ff' : message.isSystemMessage ? '#f6ffed' : '#f5f5f5',
-                borderRadius: 8,
-                color: message.type === 'user' ? 'white' : 'inherit'
+  // Show question directly from Redux state
+  if (questions.length > 0) {
+    const question = questions[currentQuestionIndex];
+    
+    if (question) {
+      return (
+        <div>
+          <Card style={{ marginBottom: 16, border: '2px solid #1890ff' }}>
+            <div style={{ textAlign: 'center', padding: 20 }}>
+              <Title level={2} style={{ color: '#1890ff', marginBottom: 16 }}>
+                🎯 Interview Question {currentQuestionIndex + 1} of {questions.length}
+              </Title>
+              
+              <div style={{ 
+                padding: 30, 
+                background: 'linear-gradient(135deg, #e6f7ff 0%, #f0f9ff 100%)', 
+                borderRadius: 12, 
+                border: '3px solid #1890ff',
+                marginBottom: 20,
+                boxShadow: '0 4px 12px rgba(24, 144, 255, 0.15)'
               }}>
-                <Text style={{ color: message.type === 'user' ? 'white' : 'inherit' }}>
-                  {message.content}
+                <div style={{ marginBottom: 16 }}>
+                  <Text style={{ 
+                    fontSize: 18, 
+                    fontWeight: 'bold', 
+                    background: '#1890ff',
+                    color: 'white',
+                    padding: '8px 16px',
+                    borderRadius: 20,
+                    display: 'inline-block'
+                  }}>
+                    {question.difficulty.toUpperCase()} • {question.timeLimit}s
+                  </Text>
+                </div>
+                
+                <Text style={{ 
+                  fontSize: 20, 
+                  lineHeight: 1.6,
+                  color: '#333',
+                  fontWeight: '500'
+                }}>
+                  {question.text}
                 </Text>
-                <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
-                  {message.timestamp.toLocaleTimeString()}
+                
+                <div style={{ marginTop: 20, fontSize: 16, color: '#666' }}>
+                  ⏰ Time Remaining: <strong style={{ color: '#1890ff' }}>{formatTime(timeRemaining)}</strong>
                 </div>
               </div>
-            </List.Item>
-          )}
-        />
-        {isGenerating && (
-          <List.Item style={{ border: 'none', padding: '8px 0' }}>
-            <div style={{ padding: '8px 16px', background: '#f5f5f5', borderRadius: 8 }}>
-              <Spin size="small" /> <Text style={{ marginLeft: 8 }}>AI is evaluating your answer...</Text>
             </div>
-          </List.Item>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+          </Card>
 
-      <div style={{ display: 'flex', gap: 8 }}>
-        <TextArea
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Type your answer here..."
-          rows={3}
-          disabled={isSubmitting || timeRemaining <= 0}
-          onPressEnter={(e) => {
-            if (e.shiftKey) return;
-            e.preventDefault();
-            handleSubmit();
-          }}
-        />
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          onClick={handleSubmit}
-          loading={isSubmitting}
-          disabled={!inputValue.trim() || timeRemaining <= 0}
-          style={{ height: 'auto', alignSelf: 'flex-end' }}
-        >
-          Send
-        </Button>
-      </div>
-      
-      {timeRemaining <= 0 && (
-        <div style={{ marginTop: 8, textAlign: 'center' }}>
-          <Text type="danger">Time's up! Moving to next question...</Text>
+          <Card>
+            <div style={{ padding: 20 }}>
+              <Title level={4} style={{ marginBottom: 16 }}>Your Answer:</Title>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <TextArea
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Type your answer here..."
+                  autoSize={{ minRows: 6, maxRows: 10 }}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={handleSubmit}
+                  loading={isSubmitting || isGenerating}
+                  disabled={!inputValue.trim()}
+                  style={{ 
+                    alignSelf: 'flex-start',
+                    height: 'auto',
+                    padding: '12px 24px',
+                    fontSize: 16,
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {isGenerating ? 'Evaluating...' : 'Submit Answer'}
+                </Button>
+              </div>
+            </div>
+          </Card>
         </div>
-      )}
+      );
+    }
+  }
+
+  // Fallback message if no questions are found
+  return (
+    <Card>
+      <div style={{ textAlign: 'center', padding: 40 }}>
+        <Title level={3} style={{ color: '#fa8c16', marginBottom: 20 }}>
+          ⚠️ No Questions Available
+        </Title>
+        <Text style={{ fontSize: 16, color: '#666', marginBottom: 20 }}>
+          The interview questions are not loading properly.
+        </Text>
+      </div>
     </Card>
   );
 };

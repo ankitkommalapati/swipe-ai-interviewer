@@ -13,7 +13,7 @@ interface ResumeUploadProps {
 const ResumeUpload: React.FC<ResumeUploadProps> = ({ onCandidateCreated }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [resumeData, setResumeData] = useState<ResumeData | null>(null);
+  const [, setResumeData] = useState<ResumeData | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   const handleFileUpload = async (file: File) => {
@@ -42,8 +42,6 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onCandidateCreated }) => {
       form.setFieldsValue(formData);
 
       // Debug: Log extracted data
-      console.log('Extracted resume data:', parsedData);
-      console.log('Form data being set:', formData);
 
       // Show success message with details
       const extractedCount = Object.keys(formData).length;
@@ -71,7 +69,12 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onCandidateCreated }) => {
       name: values.name,
       email: values.email,
       phone: values.phone,
-      resume: uploadedFile,
+      resume: {
+        fileName: uploadedFile.name,
+        fileSize: uploadedFile.size,
+        fileType: uploadedFile.type,
+        uploadDate: new Date().toISOString(),
+      },
       interviewStatus: 'not_started',
       currentQuestionIndex: 0,
       answers: [],

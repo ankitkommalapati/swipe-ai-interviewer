@@ -95,8 +95,8 @@ export class AIService {
   }
 
   private static async callOpenAI(prompt: string): Promise<string> {
-    if (!this.API_KEY) {
-      throw new Error('OpenAI API key not configured');
+    if (!this.API_KEY || this.API_KEY === 'your_openai_api_key_here') {
+      throw new Error('OpenAI API key not configured. Please add your API key to the .env file.');
     }
 
     const response = await fetch(this.API_URL, {
@@ -114,10 +114,17 @@ export class AIService {
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('OpenAI API Error:', response.status, response.statusText, errorText);
+      throw new Error(`OpenAI API error (${response.status}): ${response.statusText}. ${errorText}`);
     }
 
     const data = await response.json();
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('Invalid response from OpenAI API');
+    }
+    
     return data.choices[0].message.content;
   }
 
