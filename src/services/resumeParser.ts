@@ -1,8 +1,15 @@
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configure PDF.js worker - try multiple CDN options for better reliability
+const workerUrls = [
+  `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`,
+  `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`,
+  `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+];
+
+// Use the first worker URL
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrls[0];
 
 export interface ResumeData {
   name?: string;
@@ -39,8 +46,14 @@ export class ResumeParser {
         try {
           const arrayBuffer = reader.result as ArrayBuffer;
           
-          // Load the PDF document
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          // Load the PDF document with error handling
+          const pdf = await pdfjsLib.getDocument({ 
+            data: arrayBuffer,
+            useWorkerFetch: false,
+            isEvalSupported: false,
+            useSystemFonts: true
+          }).promise;
+          
           let fullText = '';
           
           // Extract text from all pages
@@ -59,8 +72,11 @@ export class ResumeParser {
           resolve(fullText.trim());
         } catch (error) {
           console.error('Error parsing PDF:', error);
-          // Provide more specific error messages
-          if (error instanceof Error) {
+          
+          // If PDF parsing fails due to worker issues, provide a helpful message
+          if (error instanceof Error && error.message.includes('worker')) {
+            reject(new Error('PDF parsing is temporarily unavailable. Please try uploading a DOCX file instead, or manually enter your information.'));
+          } else if (error instanceof Error) {
             if (error.message.includes('Invalid PDF')) {
               reject(new Error('Invalid PDF file. Please ensure the file is a valid PDF document.'));
             } else if (error.message.includes('password')) {
