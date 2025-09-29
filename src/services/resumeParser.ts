@@ -1,15 +1,9 @@
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Configure PDF.js worker - try multiple CDN options for better reliability
-const workerUrls = [
-  `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`,
-  `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`,
-  `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
-];
-
-// Use the first worker URL
-pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrls[0];
+// Configure PDF.js worker - use a more reliable approach
+// Set worker to undefined to disable it completely
+pdfjsLib.GlobalWorkerOptions.workerSrc = undefined as any;
 
 export interface ResumeData {
   name?: string;
