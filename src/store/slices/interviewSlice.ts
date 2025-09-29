@@ -91,6 +91,14 @@ const interviewSlice = createSlice({
         state.currentSession.messages.push(message);
       }
     },
+    resetInterview: (state) => {
+      state.currentSession = null;
+      state.isInterviewActive = false;
+      state.questions = [];
+      state.currentQuestionIndex = 0;
+      state.timeRemaining = 0;
+      state.isPaused = false;
+    },
   },
 });
 
@@ -104,6 +112,7 @@ export const {
   nextQuestion,
   endInterview,
   addInterviewMessage,
+  resetInterview,
 } = interviewSlice.actions;
 
 export default interviewSlice.reducer;

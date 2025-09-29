@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Card, Steps, Button, message } from 'antd';
 import { RootState } from '../store';
-import { addCandidate, updateCandidate } from '../store/slices/candidatesSlice';
-import { startInterview, setQuestions } from '../store/slices/interviewSlice';
+import { addCandidate, updateCandidate, resetCandidates } from '../store/slices/candidatesSlice';
+import { startInterview, setQuestions, resetInterview } from '../store/slices/interviewSlice';
 import { Candidate } from '../types';
 import ResumeUpload from './ResumeUpload';
 import ChatInterface from './ChatInterface';
@@ -21,6 +21,12 @@ const IntervieweeTab: React.FC = () => {
   const currentCandidate = candidates.find((c: Candidate) => c.id === currentSession?.candidateId);
 
   useEffect(() => {
+    // Always start at step 0 if no active session
+    if (!currentSession || !currentSession.isActive) {
+      setCurrentStep(0);
+      return;
+    }
+
     if (currentCandidate) {
       if (currentCandidate.interviewStatus === 'completed') {
         setCurrentStep(2);
@@ -29,8 +35,19 @@ const IntervieweeTab: React.FC = () => {
       } else {
         setCurrentStep(0);
       }
+    } else {
+      // No current candidate - start fresh
+      setCurrentStep(0);
     }
-  }, [currentCandidate]);
+  }, [currentCandidate, currentSession]);
+
+  const handleStartNewInterview = () => {
+    // Reset all state
+    dispatch(resetCandidates());
+    dispatch(resetInterview());
+    setCurrentStep(0);
+    message.success('Starting fresh interview session!');
+  };
 
   const handleCandidateCreated = async (candidate: Candidate) => {
     dispatch(addCandidate(candidate));
@@ -109,10 +126,7 @@ const IntervieweeTab: React.FC = () => {
               <Button 
                 type="primary" 
                 size="large" 
-                onClick={() => {
-                  setCurrentStep(0);
-                  window.location.reload();
-                }}
+                onClick={handleStartNewInterview}
                 style={{ marginTop: 20 }}
               >
                 Start New Interview
