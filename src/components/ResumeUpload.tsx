@@ -44,9 +44,9 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onCandidateCreated }) => {
       // Debug: Log extracted data
 
       // Show success message with details
-      const extractedCount = Object.keys(formData).length;
+      const extractedCount = Object.keys(formData).filter(key => formData[key]).length;
       if (extractedCount > 0) {
-        message.success(`Resume parsed! Extracted ${extractedCount} field(s). Please review and complete any missing information.`);
+        message.success(`Resume parsed successfully! Extracted ${extractedCount} field(s). Please review and complete any missing information.`);
       } else {
         message.success('Resume uploaded successfully! Please fill in your information below.');
       }

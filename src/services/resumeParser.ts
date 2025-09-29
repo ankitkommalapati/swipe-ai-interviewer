@@ -1,4 +1,8 @@
 import mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export interface ResumeData {
   name?: string;
@@ -29,13 +33,48 @@ export class ResumeParser {
   }
 
   private static async parsePDF(file: File): Promise<string> {
-    // For now, we'll provide a simple text extraction
-    // In a real implementation, you might want to use a different PDF library
-    // or implement server-side PDF parsing
-    return new Promise((resolve) => {
-      // Return empty text for PDF files - no extraction attempted
-      // The user will need to manually enter their information
-      resolve('');
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const arrayBuffer = reader.result as ArrayBuffer;
+          
+          // Load the PDF document
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          let fullText = '';
+          
+          // Extract text from all pages
+          for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            
+            // Combine all text items from the page
+            const pageText = textContent.items
+              .map((item: any) => item.str)
+              .join(' ');
+            
+            fullText += pageText + '\n';
+          }
+          
+          resolve(fullText.trim());
+        } catch (error) {
+          console.error('Error parsing PDF:', error);
+          // Provide more specific error messages
+          if (error instanceof Error) {
+            if (error.message.includes('Invalid PDF')) {
+              reject(new Error('Invalid PDF file. Please ensure the file is a valid PDF document.'));
+            } else if (error.message.includes('password')) {
+              reject(new Error('This PDF is password protected. Please use an unprotected PDF file.'));
+            } else {
+              reject(new Error(`Failed to parse PDF: ${error.message}`));
+            }
+          } else {
+            reject(new Error('Failed to parse PDF file. Please ensure the file is not corrupted.'));
+          }
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read PDF file.'));
+      reader.readAsArrayBuffer(file);
     });
   }
 
